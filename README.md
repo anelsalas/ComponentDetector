@@ -6,3 +6,7 @@
  https://wiki.qt.io/OpenCV_with_Qt
 
  https://gist.github.com/UnaNancyOwen/e24e67966af5f1d5f5cce4a88af7b4a4
+
+ https://www.youtube.com/playlist?list=PLeLcvrwLe187K3Ceoe3X3VMAa31591aO8
+
+ https://www.youtube.com/watch?v=fYBdwGpHQGw
