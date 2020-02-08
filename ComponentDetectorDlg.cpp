@@ -12,6 +12,9 @@
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 
+#include "MyHogDetector.h""
+
+
 
 
 #ifdef _DEBUG
@@ -32,14 +35,16 @@ CComponentDetectorDlg::CComponentDetectorDlg(CWnd* pParent /*=nullptr*/)
 void CComponentDetectorDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_STATIC_MAIN_PICTURE_CONTROL, mMainPictureControl);
 }
 
 BEGIN_MESSAGE_MAP(CComponentDetectorDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	//ON_BN_CLICKED(IDC_BUTTON1, &CComponentDetectorDlg::OnBnClickedButton1)
-	//ON_BN_CLICKED(IDC_BT_SHOW_VID, &CComponentDetectorDlg::OnBnClickedBtShowVid)
 	ON_BN_CLICKED(IDC_BUTTON1, &CComponentDetectorDlg::OnBnClickedButton1)
+	ON_NOTIFY(NM_CUSTOMDRAW, IDC_SLIDER1, &CComponentDetectorDlg::OnNMCustomdrawSlider1)
+	ON_BN_CLICKED(IDC_BUTTON2, &CComponentDetectorDlg::OnBnClickedButton2)
+	ON_BN_CLICKED(IDC_BUTTON3, &CComponentDetectorDlg::OnBnClickedButton3)
 END_MESSAGE_MAP()
 
 
@@ -98,64 +103,19 @@ HCURSOR CComponentDetectorDlg::OnQueryDragIcon()
 
 
 
-
-	/*
-
-{
-	AfxMessageBox((LPCTSTR)"shit");
-
-	cv::namedWindow("raw", cv::WINDOW_AUTOSIZE);
-	cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
-	cv::namedWindow("canny", cv::WINDOW_AUTOSIZE);
-
-	cv::VideoCapture cap;
-	cap.open(1);
-
-	if (!cap.isOpened())
-	{
-		std::cerr << "Couldn't open capture." << std::endl;
-		return;
-	}
-
-	cv::UMat bgr_frame, gray, canny;
-
-	for (;;)
-	{
-		cap >> bgr_frame;
-		if (bgr_frame.empty()) break;
-
-		cv::imshow("raw", bgr_frame);
-
-		cv::cvtColor(bgr_frame, gray, cv::COLOR_BGR2GRAY);
-		cv::imshow("gray", gray);
-
-		cv::Canny(gray, canny, 10, 100, 3, true);
-		cv::imshow("canny", canny);
-
-		char c = cv::waitKey(10);
-		if (c == 27) break;
-	}
-
-	cap.release();
-	return;
-
-}
-	*/
-
-
-
 void CComponentDetectorDlg::OnBnClickedButton1()
 {
 
+	//AfxMessageBox((LPCTSTR)"shit");
 
-
-
-	AfxMessageBox((LPCTSTR)"shit");
-
-	cv::namedWindow("raw", cv::WINDOW_AUTOSIZE);
-	cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
+	//cv::namedWindow("raw", cv::WINDOW_AUTOSIZE);
+	//cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
 	cv::namedWindow("canny", cv::WINDOW_AUTOSIZE);
+	cv::namedWindow("canny_sharr", cv::WINDOW_AUTOSIZE);
+	CBitmap mainbitmap;
 
+	int edgeThresh = 1;
+	int edgeThreshScharr = 1;
 	
 	cv::VideoCapture cap;
 	cap.open(1);
@@ -166,25 +126,253 @@ void CComponentDetectorDlg::OnBnClickedButton1()
 		return;
 	}
 
-	cv::UMat bgr_frame, gray, canny;
-
+	cv::Mat bgr_frame,blured,sharred, gray, canny, edge1, edge2, image, cedge;
+	cv::Mat dx, dy;
+	MyHogDetector Mydetector;
 	for (;;)
 	{
 		cap >> bgr_frame;
 		if (bgr_frame.empty()) break;
 
-		cv::imshow("raw", bgr_frame);
 
 		cv::cvtColor(bgr_frame, gray, cv::COLOR_BGR2GRAY);
-		cv::imshow("gray", gray);
+		blur(gray, blured, cv::Size(3, 3));
 
-		cv::Canny(gray, canny, 10, 100, 3, true);
-		cv::imshow("canny", canny);
 
-		char c = cv::waitKey(10);
-		if (c == 27) break;
+
+		cv::Canny(blured, canny, 87, 400, 3, true);
+
+		int64 t = cv::getTickCount();
+		vector<cv::Rect> found = Mydetector.detect(canny);
+		t = cv::getTickCount() - t;
+
+		// show the window
+		{
+			ostringstream buf;
+			buf << "Mode: " << Mydetector.modeName() << " ||| "
+				<< "FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t)
+				<< "Found: " << found.size();
+			putText(bgr_frame, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(0, 0, 255), 2, cv::LINE_AA);
+		}
+		for (vector<cv::Rect>::iterator i = found.begin(); i != found.end(); ++i)
+		{
+			cv::Rect& r = *i;
+			Mydetector.adjustRect(r);
+			rectangle(bgr_frame, r.tl(), r.br(), cv::Scalar(0, 255, 0), 2);
+		}
+
+
+		//cv::Scharr(blured,sharred,)
+
+
+	/// Canny detector with scharr
+/*
+		cv::Scharr(blured, dx, CV_16SC1, 1, 0);
+		cv::Scharr(blured, dy, CV_16SC1, 0, 1);
+		Canny(dx, dy, edge2, edgeThreshScharr, edgeThreshScharr * 3);
+
+		/// Using Canny's output as a mask, we display our result
+		cedge = cv::Scalar::all(0);
+		//image.copyTo(cedge, edge2);
+		cv::imshow("canny scharred", edge2);
+*/
+		//cv::imshow("raw", bgr_frame);
+		cv::imshow("canny_sharr", canny);
+		cv::imshow("canny", bgr_frame);
+
+		char key = cv::waitKey(10);
+		if (key == 27 || key == 'q') break;// ESC
 	}
 
 	cap.release();
 	return;
+}
+/*
+void CComponentDetectorDlg::DrawCVImage(System::Windows::Forms::Control^ control, cv::Mat& colorImage)
+{
+	System::Drawing::Graphics^ graphics = control->CreateGraphics();
+	System::IntPtr ptr(colorImage.ptr());
+	System::Drawing::Bitmap^ b = gcnew System::Drawing::Bitmap(colorImage.cols, colorImage.rows, colorImage.step, System::Drawing::Imaging::PixelFormat::Format24bppRgb, ptr);
+	System::Drawing::RectangleF rect(0, 0, control->Width, control->Height);
+	graphics->DrawImage(b, rect);
+	delete graphics;
+
+	////////////// other shit to try to put the mat into a windows frame
+			mainbitmap.CreateBitmap(canny.rows,
+			canny.cols,
+			canny.channels(),
+			(UINT) canny.size.p,  //cols * canny.rows,
+			canny.data);
+
+
+		mainbitmap.LoadBitmap(IDC_STATIC_MAIN_PICTURE_CONTROL);
+		this->UpdateWindow();
+
+		//STATIC_MAIN_PICTURE_CONTROL
+}
+*/
+
+
+void CComponentDetectorDlg::OnNMCustomdrawSlider1(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
+	// TODO: Add your control notification handler code here
+	*pResult = 0;
+}
+
+
+void CComponentDetectorDlg::OnBnClickedButton2()
+{
+	cv::namedWindow("Convex Hull", cv::WINDOW_AUTOSIZE);
+	//cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
+
+	cv::VideoCapture cap;
+	cap.open(1);
+
+	if (!cap.isOpened())
+	{
+		std::cerr << "Couldn't open capture." << std::endl;
+		return;
+	}
+
+	cv::Mat bgr_frame, blured, threshold_output, gray, chull,canny;
+	cv::Mat dx, dy;
+	MyHogDetector Mydetector;
+	for (;;)
+	{
+		int64 t = cv::getTickCount();
+		cap >> bgr_frame;
+		if (bgr_frame.empty()) break;
+
+
+		cv::cvtColor(bgr_frame, gray, cv::COLOR_BGR2GRAY);
+		cv::blur(gray, blured, cv::Size(3, 3));
+		cv::Canny(blured, canny, 87, 400, 3, true);
+		cv::threshold(canny, threshold_output, 50, 255, cv::THRESH_BINARY); // apply binary thresholding
+
+		vector< vector<cv::Point> > contours; // list of contour points
+		vector<cv::Vec4i> hierarchy;
+		// find contours
+		cv::findContours(threshold_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+
+
+		// create hull array for convex hull points
+		vector< vector<cv::Point> > hull(contours.size());
+		for (int i = 0; i < contours.size(); i++)
+			cv::convexHull(cv::Mat(contours[i]), hull[i], false);
+
+
+
+		for (int i = 0; i < contours.size(); i++)
+		{
+			cv::Scalar color = cv::Scalar(0, 0, 255); // blue - color for convex hull
+			// draw ith convex hull
+			drawContours(bgr_frame, hull, i, color, 1, 8, vector<cv::Vec4i>(), 0, cv::Point());
+		}
+		t = cv::getTickCount() - t;
+
+		// show the window
+		{
+			ostringstream buf;
+			buf << "convex Hull" << " ||| "
+				<< "FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t) 
+				<< "Found: " << hull.size();
+			putText(bgr_frame, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+		}
+		cv::imshow("Convex Hull", bgr_frame);
+		//cv::imshow("gray", canny);
+
+		char key = cv::waitKey(10);
+		if (key == 27 || key == 'q') break;// ESC
+	}
+
+	cap.release();
+	return;
+
+}
+
+
+void CComponentDetectorDlg::OnBnClickedButton3()
+{
+	cv::namedWindow("raw", cv::WINDOW_AUTOSIZE);
+	cv::namedWindow("Generalized Hugh", cv::WINDOW_AUTOSIZE);
+
+	CBitmap mainbitmap;
+
+	cv::VideoCapture cap;
+	cap.open(1);
+
+	if (!cap.isOpened())
+	{
+		std::cerr << "Couldn't open capture." << std::endl;
+		return;
+	}
+
+	cv::Mat bgr_frame, blured, threshold_output, gray, canny, hugh;
+	cv::Mat dx, dy;
+	MyHogDetector Mydetector;
+	for (;;)
+	{
+		int64 t = cv::getTickCount();
+		cap >> bgr_frame;
+		if (bgr_frame.empty()) break;
+
+
+		cv::cvtColor(bgr_frame, gray, cv::COLOR_BGR2GRAY);
+		cv::blur(gray, blured, cv::Size(3, 3));
+		cv::Canny(blured, canny, 87, 400, 3, true);
+		cv::threshold(canny, threshold_output, 50, 255, cv::THRESH_BINARY); // apply binary thresholding
+
+		vector< vector<cv::Point> > contours; // list of contour points
+		vector<cv::Vec4i> hierarchy;
+		// find contours
+		cv::findContours(threshold_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+
+
+		//vector<int> hull;
+
+
+		// create hull array for convex hull points
+		vector< vector<cv::Point> > hull(contours.size());
+		for (int i = 0; i < contours.size(); i++)
+			cv::convexHull(cv::Mat(contours[i]), hull[i], false);
+
+
+		//drawContours(canny, hull, i, color, 1, 8, vector<Vec4i>(), 0, Point());
+
+
+		for (int i = 0; i < contours.size(); i++)
+		{
+			cv::Scalar color = cv::Scalar(0, 0, 255); // blue - color for convex hull
+			// draw ith convex hull
+			drawContours(bgr_frame, hull, i, color, 1, 8, vector<cv::Vec4i>(), 0, cv::Point());
+		}
+		t = cv::getTickCount() - t;
+
+		// show the window
+		{
+			ostringstream buf;
+			buf << "Mode: " << Mydetector.modeName() << " ||| "
+				<< "FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t)
+				<< "Found: " << hull.size();
+			putText(bgr_frame, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+		}
+		/*
+		for (vector<cv::Rect>::iterator i = found.begin(); i != found.end(); ++i)
+		{
+			cv::Rect& r = *i;
+			Mydetector.adjustRect(r);
+			rectangle(bgr_frame, r.tl(), r.br(), cv::Scalar(0, 255, 0), 2);
+		}
+		*/
+		cv::imshow("raw", bgr_frame);
+		cv::imshow("Generalized Hugh", hugh);
+
+		char key = cv::waitKey(10);
+		if (key == 27 || key == 'q') break;// ESC
+	}
+
+	cap.release();
+	return;
+
 }

@@ -48,3 +48,6 @@ x64/Release/vcpkg.applocal.log
 .vs/ComponentDetector/v16/Browse.VC.db
 .vs/ComponentDetector/v16/ipch/42561ecb3f8fd7e0.ipch
 .vs/ComponentDetector/v16/ipch/f3e867668d54cae5.ipch
+x64/Release/Componen.0CBAA73F.tlog/link.delete.1.tlog
+x64/Release/ComponentDetector.Build.CppClean.log
+x64/Release/ComponentDetector.vcxproj.FileListAbsolute.txt

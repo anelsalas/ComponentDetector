@@ -4,6 +4,7 @@
 #include <iostream>
 #include <strsafe.h>
 #pragma once
+#include "Resource.h"
 
 
 // CComponentDetectorDlg dialog
@@ -35,4 +36,9 @@ protected:
 public:
 
 	afx_msg void OnBnClickedButton1();
+	afx_msg void OnNMCustomdrawSlider1(NMHDR* pNMHDR, LRESULT* pResult);
+	CStatic mMainPictureControl;
+	CBitmap Bmp1;
+	afx_msg void OnBnClickedButton2();
+	afx_msg void OnBnClickedButton3();
 };
