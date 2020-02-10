@@ -11,20 +11,17 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
+#include <opencv2/imgcodecs.hpp>
 
-#include "MyHogDetector.h""
-
-
-
+#include "MyHogDetector.h"
+#include "MyConvexHull.h"
+#include "MyAproximateSquares.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-
 // CComponentDetectorDlg dialog
-
-
 
 CComponentDetectorDlg::CComponentDetectorDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_COMPONENTDETECTOR_DIALOG, pParent)
@@ -45,6 +42,9 @@ BEGIN_MESSAGE_MAP(CComponentDetectorDlg, CDialogEx)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_SLIDER1, &CComponentDetectorDlg::OnNMCustomdrawSlider1)
 	ON_BN_CLICKED(IDC_BUTTON2, &CComponentDetectorDlg::OnBnClickedButton2)
 	ON_BN_CLICKED(IDC_BUTTON3, &CComponentDetectorDlg::OnBnClickedButton3)
+	ON_BN_CLICKED(IDC_BUTTON4, &CComponentDetectorDlg::OnBnClickedButton4)
+	ON_BN_CLICKED(IDC_BUTTON5, &CComponentDetectorDlg::OnBnClickedButton5)
+	ON_BN_CLICKED(IDC_BUTTON6, &CComponentDetectorDlg::OnBnClickedButton6)
 END_MESSAGE_MAP()
 
 
@@ -102,7 +102,7 @@ HCURSOR CComponentDetectorDlg::OnQueryDragIcon()
 
 
 
-
+// Canny Video Capture
 void CComponentDetectorDlg::OnBnClickedButton1()
 {
 
@@ -118,7 +118,7 @@ void CComponentDetectorDlg::OnBnClickedButton1()
 	int edgeThreshScharr = 1;
 	
 	cv::VideoCapture cap;
-	cap.open(1);
+	cap.open(0);
 
 	if (!cap.isOpened())
 	{
@@ -220,14 +220,14 @@ void CComponentDetectorDlg::OnNMCustomdrawSlider1(NMHDR* pNMHDR, LRESULT* pResul
 	*pResult = 0;
 }
 
-
+// Convex Hull Video Capture
 void CComponentDetectorDlg::OnBnClickedButton2()
 {
-	cv::namedWindow("Convex Hull", cv::WINDOW_AUTOSIZE);
+	cv::namedWindow("ConvexHull", cv::WINDOW_AUTOSIZE);
 	//cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
 
 	cv::VideoCapture cap;
-	cap.open(1);
+	cap.open(0);
 
 	if (!cap.isOpened())
 	{
@@ -235,16 +235,20 @@ void CComponentDetectorDlg::OnBnClickedButton2()
 		return;
 	}
 
-	cv::Mat bgr_frame, blured, threshold_output, gray, chull,canny;
-	cv::Mat dx, dy;
-	MyHogDetector Mydetector;
+	cv::Mat bgr_frame, blured, threshold_output, gray, chull,canny, convexHull;
+	
 	for (;;)
 	{
-		int64 t = cv::getTickCount();
+		MyConvexHull myDetectConvHull;
 		cap >> bgr_frame;
+		//bgr_frame.copyTo(gray);
 		if (bgr_frame.empty()) break;
+		uint16_t found(0);
+		
+		int64 t = cv::getTickCount();
+		myDetectConvHull.detect( bgr_frame, convexHull, found);
 
-
+/*
 		cv::cvtColor(bgr_frame, gray, cv::COLOR_BGR2GRAY);
 		cv::blur(gray, blured, cv::Size(3, 3));
 		cv::Canny(blured, canny, 87, 400, 3, true);
@@ -261,25 +265,23 @@ void CComponentDetectorDlg::OnBnClickedButton2()
 		for (int i = 0; i < contours.size(); i++)
 			cv::convexHull(cv::Mat(contours[i]), hull[i], false);
 
-
-
 		for (int i = 0; i < contours.size(); i++)
 		{
 			cv::Scalar color = cv::Scalar(0, 0, 255); // blue - color for convex hull
 			// draw ith convex hull
 			drawContours(bgr_frame, hull, i, color, 1, 8, vector<cv::Vec4i>(), 0, cv::Point());
 		}
+*/
 		t = cv::getTickCount() - t;
 
-		// show the window
-		{
-			ostringstream buf;
-			buf << "convex Hull" << " ||| "
-				<< "FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t) 
-				<< "Found: " << hull.size();
-			putText(bgr_frame, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
-		}
-		cv::imshow("Convex Hull", bgr_frame);
+		ostringstream buf;
+		buf << "Convex Hull" 
+			<< " FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t) << " ||| "
+			<< "Found: " << found;
+		putText(convexHull, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+
+
+		cv::imshow("ConvexHull", convexHull );
 		//cv::imshow("gray", canny);
 
 		char key = cv::waitKey(10);
@@ -291,7 +293,7 @@ void CComponentDetectorDlg::OnBnClickedButton2()
 
 }
 
-
+// Generalized Hugh Video capture
 void CComponentDetectorDlg::OnBnClickedButton3()
 {
 	cv::namedWindow("raw", cv::WINDOW_AUTOSIZE);
@@ -375,4 +377,165 @@ void CComponentDetectorDlg::OnBnClickedButton3()
 	cap.release();
 	return;
 
+}
+
+// Approximate Squarres Video Capture
+void CComponentDetectorDlg::OnBnClickedButton4()
+{
+	cv::namedWindow("AproxSquares", cv::WINDOW_AUTOSIZE);
+	//cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
+	//bgr_frame = cv::imread("E:\\Source\\cpp\\ComponentDetector\\SMDParts2.jpg");
+	cv::VideoCapture cap;
+	cap.open(0);
+	cv::Mat bgr_frame;
+
+	if (!cap.isOpened())
+	{
+		std::cerr << "Couldn't open capture." << std::endl;
+		return;
+	}
+
+	cv::Mat blured, threshold_output, gray, chull, canny, apSqs;
+
+	for (;;)
+	{
+		MyAproximateSquares myDetectAproxSqs;
+		cap >> bgr_frame;
+		//bgr_frame.copyTo(gray);
+		if (bgr_frame.empty()) break;
+		uint16_t found(0);
+
+		int64 t = cv::getTickCount();
+		myDetectAproxSqs.detect(bgr_frame, apSqs, found);
+
+		t = cv::getTickCount() - t;
+
+		ostringstream buf;
+		buf << "Convex Hull"
+			<< " FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t) << " ||| "
+			<< "Found: " << found;
+		putText(apSqs, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+
+
+		cv::imshow("AproxSquares", apSqs);
+		//cv::imshow("gray", canny);
+
+		char key = cv::waitKey(10);
+		if (key == 27 || key == 'q') break;// ESC
+	}
+
+	//cap.release();
+	return;
+}
+
+// Convex Hull Image
+void CComponentDetectorDlg::OnBnClickedButton5()
+{
+	cv::namedWindow("ConvexHull", cv::WINDOW_AUTOSIZE);
+	//cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
+
+
+
+	cv::Mat bgr_frame, blured, threshold_output, gray, chull, canny, convexHull;
+	bgr_frame = cv::imread("E:\\Source\\cpp\\ComponentDetector\\SMDParts2.jpg");
+	for (;;)
+	{
+		MyConvexHull myDetectConvHull;
+		//bgr_frame.copyTo(gray);
+		if (bgr_frame.empty()) break;
+		uint16_t found(0);
+
+		int64 t = cv::getTickCount();
+		myDetectConvHull.detect(bgr_frame, convexHull, found);
+
+		/*
+				cv::cvtColor(bgr_frame, gray, cv::COLOR_BGR2GRAY);
+				cv::blur(gray, blured, cv::Size(3, 3));
+				cv::Canny(blured, canny, 87, 400, 3, true);
+				cv::threshold(canny, threshold_output, 50, 255, cv::THRESH_BINARY); // apply binary thresholding
+
+				vector< vector<cv::Point> > contours; // list of contour points
+				vector<cv::Vec4i> hierarchy;
+				// find contours
+				cv::findContours(threshold_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+
+
+				// create hull array for convex hull points
+				vector< vector<cv::Point> > hull(contours.size());
+				for (int i = 0; i < contours.size(); i++)
+					cv::convexHull(cv::Mat(contours[i]), hull[i], false);
+
+				for (int i = 0; i < contours.size(); i++)
+				{
+					cv::Scalar color = cv::Scalar(0, 0, 255); // blue - color for convex hull
+					// draw ith convex hull
+					drawContours(bgr_frame, hull, i, color, 1, 8, vector<cv::Vec4i>(), 0, cv::Point());
+				}
+		*/
+		t = cv::getTickCount() - t;
+
+		ostringstream buf;
+		buf << "Convex Hull"
+			<< " FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t) << " ||| "
+			<< "Found: " << found;
+		putText(convexHull, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+
+
+		cv::imshow("ConvexHull", convexHull);
+		//cv::imshow("gray", canny);
+
+		char key = cv::waitKey(10);
+		if (key == 27 || key == 'q') break;// ESC
+	}
+
+	return;
+}
+
+// Aproximate Squares Image
+void CComponentDetectorDlg::OnBnClickedButton6()
+{
+	cv::namedWindow("AproxSquares", cv::WINDOW_AUTOSIZE);
+	//cv::namedWindow("gray", cv::WINDOW_AUTOSIZE);
+	cv::Mat bgr_frame;
+	bgr_frame = cv::imread("E:\\Source\\cpp\\ComponentDetector\\SMDParts2.jpg");
+	//cv::VideoCapture cap;
+	//cap.open(0);
+
+	//if (!cap.isOpened())
+	//{
+	//	std::cerr << "Couldn't open capture." << std::endl;
+	//	return;
+	//}
+
+	cv::Mat blured, threshold_output, gray, chull, canny, apSqs;
+
+	for (;;)
+	{
+		MyAproximateSquares myDetectAproxSqs;
+		//cap >> bgr_frame;
+		//bgr_frame.copyTo(gray);
+		if (bgr_frame.empty()) break;
+		uint16_t found(0);
+
+		int64 t = cv::getTickCount();
+		myDetectAproxSqs.detect(bgr_frame, apSqs, found);
+
+		t = cv::getTickCount() - t;
+
+		ostringstream buf;
+		buf << "Convex Hull"
+			<< " FPS: " << fixed << setprecision(1) << (cv::getTickFrequency() / (double)t) << " ||| "
+			<< "Found: " << found;
+		putText(apSqs, buf.str(), cv::Point(10, 30), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 0, 0), 2, cv::LINE_AA);
+
+
+		cv::imshow("AproxSquares", apSqs);
+		//cv::imshow("gray", canny);
+
+		char key = cv::waitKey(10);
+		if (key == 27 || key == 'q') break;// ESC
+	}
+
+	//cap.release();
+	return;
 }

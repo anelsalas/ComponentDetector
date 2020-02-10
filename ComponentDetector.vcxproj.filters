@@ -39,6 +39,12 @@
     <ClInclude Include="MyHogDetector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MyConvexHull.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MyAproximateSquares.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ComponentDetector.cpp">
